@@ -30,9 +30,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import UIKit
-
 // MARK: - UIBezierPath Extension
+
+import CoreGraphics
+
+#if os(iOS)
+import UIKit
 
 public extension UIBezierPath {
     
@@ -66,6 +69,52 @@ public extension UIBezierPath {
     }
     
 }
+
+#endif
+
+#if os(macOS)
+import AppKit
+
+public extension NSBezierPath {
+    
+    /// Create an UIBezierPath instance from a sequence of points which is drawn smoothly.
+    ///
+    /// - Parameter points: points of the path.
+    /// - Returns: smoothed UIBezierPath.
+    static func smoothFromPoints<P: Point2DRepresentable>(_ points: [P]) -> NSBezierPath {
+        let path = NSBezierPath()
+        guard points.count > 1 else {
+            return path
+        }
+        
+        var prevPoint: CGPoint?
+        for (index, point) in points.enumerated() {
+            if index == 0 {
+                path.move(to: point.cgPoint)
+            } else {
+                if index == 1 {
+                    path.line(to: point.cgPoint)
+                }
+                if let prevPoint = prevPoint {
+                    let midPoint = prevPoint.midPointForPointsTo(point.cgPoint)
+                    path.addQuadCurve(to: midPoint, controlPoint: midPoint.controlPointToPoint(prevPoint))
+                    path.addQuadCurve(to: point.cgPoint, controlPoint: midPoint.controlPointToPoint(point.cgPoint))
+                }
+            }
+            prevPoint = point.cgPoint
+        }
+        return path
+    }
+    
+    func addQuadCurve(to endPoint: CGPoint, controlPoint: CGPoint){
+        let startPoint = self.currentPoint
+        let controlPoint1 = CGPoint(x: (startPoint.x + (controlPoint.x - startPoint.x) * 2.0/3.0), y: (startPoint.y + (controlPoint.y - startPoint.y) * 2.0/3.0))
+        let controlPoint2 = CGPoint(x: (endPoint.x + (controlPoint.x - endPoint.x) * 2.0/3.0), y: (endPoint.y + (controlPoint.y - endPoint.y) * 2.0/3.0))
+        curve(to: endPoint, controlPoint1: controlPoint1, controlPoint2: controlPoint2)
+    }
+}
+
+#endif
 
 // MARK: - CGPoint Extension
 
